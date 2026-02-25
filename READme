@@ -1,0 +1,83 @@
+# miRNA-seq Differential Expression Analysis
+
+This repository contains a complete workflow for analyzing miRNA-seq data across **Exosomes (Exo)**, **Tissue (Ti)**, and **CF compartments**. It includes scripts, results, and visualizations of differential expression.
+
+---
+
+## Repository Structure
+
+```text
+├── data/  
+│   └── processed/          # Count matrices and metadata  
+├── figures/                # PCA, heatmaps, volcano plots, boxplots, ternary plots  
+├── results/                # DESeq2 differential expression results  
+├── scripts/                # R scripts used for analysis  
+├── supplementary_data/     # Additional tables, Venn diagram data, and summaries  
+└── README.md
+
+Figures
+
+PCA plots: Global miRNA variation across compartments (figures/PCA_miRNA.png)
+
+Heatmaps: Top significant miRNAs (figures/heatmap_top20_miRNA_annot.png)
+
+Volcano plots: Differential expression for each comparison (figures/volcano_exo_vs_cf.png, etc.)
+
+Boxplots: Expression distribution per compartment, separated by Mature vs Precursor (figures/miRNA_boxplot_per_compartment.png)
+
+Ternary plots: miRNA distribution across compartments 
+
+Supplementary Data
+
+All additional data files are in doc/supplementary/:
+
+bowtie_reads_aligned_summary/ — Alignment summaries from Bowtie.
+
+cf_collapsed_mapped/ — CF compartment mapped miRNAs.
+
+exo_collapsed_mapped/ — Exosome compartment mapped miRNAs.
+
+tissue_collapsed_mapped/ — Tissue compartment mapped miRNAs.
+
+fastqc_miRNAs_reads/ — Raw miRNA FastQC reads quality reports.
+
+fastqc_reports_all/ — FastQC reports for all samples.
+
+multiqc_reports_all/ — Combined MultiQC summary of all FastQC reports.
+
+Installation & Requirements
+
+R (≥ 4.2) and the following packages:
+
+# CRAN packages
+install.packages(c(
+  "ggplot2", "pheatmap", "dplyr", "tidyr", "ggpubr", 
+  "RColorBrewer", "ggrepel", "cowplot", "ggtern", "tibble", "forcats"
+))
+
+# Bioconductor packages
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("DESeq2")
+BiocManager::install("VennDiagram")
+
+Usage
+
+Place the processed count matrix and metadata in data/processed/.
+
+Run the R scripts from the scripts/ folder. Each script is annotated step-by-step for:
+
+Loading and preprocessing data
+
+Differential expression analysis (DESeq2)
+
+Generating PCA, heatmaps, volcano plots, boxplots, ternary plots, and correlation plots
+
+Results are saved in results/ and figures/. Supplementary tables are in supplementary_data/.
+
+Contact
+
+Muhammad Jasim
+Email: muhammadjasim.mj@gmail..com
+Location: Finland

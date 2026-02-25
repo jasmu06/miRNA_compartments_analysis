@@ -1,0 +1,864 @@
+---
+title: "Compartment-Specific miRNA Profiling in Pediatric Burkitt lymphoma"
+author: "Muhammad Jasim"
+date: "2026-02-13"
+output: 
+  html_document: 
+    highlight: espresso
+    toc: true
+    fig_width: 8
+    fig_caption: true
+    df_print: kable
+---
+<style>
+body {
+  text-align: justify;
+}
+</style>
+```{r setup, include=FALSE}
+# Set global options for all chunks
+knitr::opts_chunk$set(
+  echo = TRUE,       # show code, set FALSE if you want only output
+  message = FALSE,   # hide package messages
+  warning = FALSE,   # hide warnings
+  cache = FALSE, 
+  fig.width = 8,     # default figure width
+  fig.height = 6,    # default figure height
+  dpi = 150          # figure resolution
+)
+```
+
+
+This study analyzes miRNA sequencing data from pediatric lymphoma patients. The dataset includes samples from 15 patients, with each patient contributing three biological compartments: tissue miRNA, exosomal miRNA, and cell-free miRNA. The raw sequencing data were retrieved from the NCBI Sequence Read Archive (SRA).
+After quality control and adapter trimming, reads were aligned to reference miRNA databases to generate raw count matrices. These raw counts were then used for differential expression analysis using the DESeq2 package in R.
+In the following sections, we describe the step-by-step processing and analysis of the raw count data, including normalization, statistical testing, and visualization of compartment-specific miRNA expression differences.
+
+
+#### Step:1 we need to upload all required packages for data analysis:
+```{r}
+library(DESeq2)
+library(ggplot2)
+library(pheatmap)
+library(dplyr)
+library(ggrepel)
+library(DESeq2)
+library(tidyr)
+library(ggpubr)
+library(tibble)
+library(forcats)
+library(VennDiagram)
+```
+#### Step 2: load raw counnt and metadata
+
+```{r}
+counts <- read.csv("data/processed/miRNA_count_matrix.csv",
+                   row.names = 1,
+                   check.names = FALSE,
+                   stringsAsFactors = FALSE)
+
+metadata <- read.csv("data/processed/metadata_mirna.csv",
+                     row.names = 1,
+                     check.names = FALSE,
+                     stringsAsFactors = FALSE)
+
+metadata <- metadata[, "Compartment", drop = FALSE]
+```
+
+```{r}
+counts[1:5, 1:5]
+dim(counts)
+head(metadata)
+```
+#### Step 3: Convert counts to numeric 
+```{r}
+counts[] <- lapply(counts, function(x) as.numeric(as.character(x)))
+counts_mat <- as.matrix(counts)
+counts_mat[is.na(counts_mat)] <- 0
+```
+#### Step 3: Reorder Metadata to Match the Count Matrix
+
+Before creating the DESeq2 dataset, it is essential to ensure that the sample order in the metadata matches the column order of the count matrix. DESeq2 requires that the column names of the count matrix correspond exactly to the row names of the metadata.
+
+```{r}
+metadata <- metadata[colnames(counts_mat), , drop = FALSE]
+```
+#### Step 4: Create the DESeq2 Dataset
+After confirming that the count matrix and metadata are properly aligned, we construct a DESeq2 dataset object. This object integrates the raw count data with the sample information and defines the experimental design formula.
+
+```{r}
+dds <- DESeqDataSetFromMatrix(
+  countData = counts_mat,
+  colData = metadata,
+  design = ~ Compartment
+)
+```
+Before proceeding with differential expression analysis, we remove miRNAs that have zero counts across all samples. Features with no expression provide no statistical information and may interfere with dispersion estimation in DESeq2.
+```{r}
+dds <- dds[rowSums(counts(dds)) > 0, ]
+```
+```{r}
+sum(rowSums(counts(dds)) == 0)
+```
+
+##### Step 4: you can check how many rows (miRNAs) and columns (samples) remain and peek at the first few entries.
+
+##### (i) Number of miRNAs and samples
+```{r}
+dim(dds)
+```
+##### (ii) Number of miRNAs only:
+```{r}
+nrow(dds)
+```
+##### (iv) First few miRNAs (rownames)
+```{r}
+head(rownames(dds))
+```
+##### (vi) First few counts (matrix)
+```{r}
+head(counts(dds)[, 1:3])
+```
+#### Step 5: Estimate size factor
+Before performing differential expression analysis, DESeq2 normalizes the count data to account for differences in sequencing depth between samples. This normalization is done by calculating size factors for each sample.
+
+Here, we use the poscounts method, which is particularly useful for datasets with many zero counts (common in miRNA-seq or small RNA-seq data).
+```{r}
+dds <- estimateSizeFactors(dds, type = "poscounts")
+```
+#### Step 6: Run DESeq2
+
+Once the count data are normalized using size factors, we perform the differential expression analysis with DESeq2. This step estimates dispersions, fits the negative binomial model, and calculates statistical tests for each miRNA.
+```{r}
+dds <- DESeq(dds, sfType = "poscounts")
+```
+####step 7: Inspect Experimental Groups and Run Pairwise Comparisons
+
+Before performing differential expression tests, it is important to check the levels of the experimental variable used in the DESeq2 dataset. In this analysis, the variable is Compartment, which indicates the sample type: exosomal, tissue, or cell-free miRNA.
+```{r}
+levels(colData(dds)$Compartment)
+```
+#### Step 8: Perform Pairwise Comparisons
+
+After checking that the compartment levels are correct, we now calculate pairwise differential expression between all groups. This allows us to see which miRNAs are differentially expressed between two compartments at a time.
+
+For our dataset with three compartments — Exosomal (exo), Tissue (ti), and Cell-free (cf) — we perform the following comparisons:
+
+####Step 9: Summarize Pairwise Comparisons
+After performing the pairwise comparisons, it is helpful to get a quick summary of the results. This lets us see how many miRNAs are upregulated, downregulated, or significant in each comparison.
+```{r}
+res_exo_vs_cf <- results(dds, contrast = c("Compartment", "exo", "cf"))
+res_exo_vs_ti <- results(dds, contrast = c("Compartment", "exo", "ti"))
+res_ti_vs_cf  <- results(dds, contrast = c("Compartment", "ti", "cf"))
+```
+#### Step 10: Summary
+```{r}
+summary(res_exo_vs_cf)
+summary(res_exo_vs_ti)
+summary(res_ti_vs_cf)
+```
+#### Step 11: Filter Significant miRNAs (FDR < 0.05)
+After running the differential expression analysis, we identify significant miRNAs using the false discovery rate (FDR), which accounts for multiple testing. In this analysis, we use an FDR cutoff of 0.05, meaning that only miRNAs with an adjusted p-value less than 0.05 are considered statistically significant.
+```{r}
+sig_exo_vs_cf <- res_exo_vs_cf[which(res_exo_vs_cf$padj < 0.05), ]
+sig_exo_vs_cf <- sig_exo_vs_cf[order(sig_exo_vs_cf$padj), ]
+
+sig_exo_vs_ti <- res_exo_vs_ti[which(res_exo_vs_ti$padj < 0.05), ]
+sig_exo_vs_ti <- sig_exo_vs_ti[order(sig_exo_vs_ti$padj), ]
+
+sig_ti_vs_cf <- res_ti_vs_cf[which(res_ti_vs_cf$padj < 0.05), ]
+sig_ti_vs_cf <- sig_ti_vs_cf[order(sig_ti_vs_cf$padj), ]
+```
+#### Step 12: Summary of Significant miRNAs
+After filtering for significance (FDR < 0.05), it is useful to get a quick overview of the results for each comparison. This summary shows how many miRNAs are significantly upregulated or downregulated in each pairwise comparison.
+```{r}
+summary(res_exo_vs_cf)
+summary(res_exo_vs_ti)
+summary(res_ti_vs_cf)
+```
+
+#### Step 13: Extract Top 40 miRNAs from Each Comparison
+After identifying significant miRNAs (FDR < 0.05), we often focus on the top-ranking miRNAs for further analysis and visualization. Here, we extract the top 40 most significant miRNAs from each pairwise comparison.
+```{r}
+top40_exo_vs_cf <- head(sig_exo_vs_cf, 40)
+top40_exo_vs_ti <- head(sig_exo_vs_ti, 40)
+top40_ti_vs_cf  <- head(sig_ti_vs_cf, 40)
+```
+
+#### Step 14: Inspect the Top 40 Significant miRNAs
+After extracting the top 40 miRNAs from each comparison, it is useful to preview the results to ensure they are correct and properly formatted before moving on to visualization.
+
+```{r}
+head(sig_exo_vs_cf, 40)
+head(sig_exo_vs_ti, 40)
+head(sig_ti_vs_cf, 40)
+```
+
+#### Step 15: Variance-Stabilizing Transformation (VST) and PCA Plot
+#### Visualisation steps: 
+Before performing Principal Component Analysis (PCA) or other visualisations, it is important to stabilize the variance in the count data. Raw RNA-seq counts can have a strong mean-variance relationship, which can distort PCA and clustering results.
+
+DESeq2 provides a variance-stabilizing transformation (VST) to normalize the counts while preserving biological differences.
+
+ 
+#### Step 1: Perform Principal Component Analysis (PCA)
+After applying the variance-stabilizing transformation, we perform PCA to explore the global patterns of miRNA expression across samples. PCA reduces the high-dimensional data into a few components that capture the major sources of variation.
+
+#### Step 2: Keep miRNAs with at least 10 counts in at least 3 samples
+```{r}
+keep <- rowSums(counts(dds) >= 10) >= 3
+```
+#### Step 3: Subset DESeqDataSet
+```{r}
+dds_filtered <- dds[keep, ]
+```
+#### Step 4: Check dimensions
+```{r}
+dim(dds_filtered)
+```
+```{r}
+vsd <- varianceStabilizingTransformation(dds_filtered, blind = FALSE)
+```
+#### Step 5: Extract transformed matrix
+```{r}
+vsd_mat <- assay(vsd)
+```
+PCA (samples must be rows)
+```{r}
+pca <- prcomp(t(vsd_mat))
+```
+#### Step 5: Calculate Percentage of Variance
+```{r}
+ percentVar <- pca$sdev^2 / sum(pca$sdev^2) * 100
+```
+#### Step 6: Create PCA Data Frame
+```{r}
+pcaData <- data.frame(
+  PC1 = pca$x[,1],
+  PC2 = pca$x[,2],
+  Compartment = colData(vsd)$Compartment
+)
+```
+#### Step 7: Rename Compartments
+```{r}
+pcaData$CompartmentLabel <- factor(
+  pcaData$Compartment,
+  levels = c("exo", "cf", "ti"),
+  labels = c("Exo-miRNA", "CF-miRNA", "Ti-miRNA")
+)
+```
+#### Step 8:  Plotting PCA
+```{r}
+p <- ggplot(pcaData, aes(x = PC1, y = PC2, color = CompartmentLabel)) +
+  geom_point(size = 5, alpha = 0.8) +
+  theme_minimal(base_size = 14) +
+  labs(
+    title = "Global miRNA Variation Across Compartments",
+    x = paste0("PC1: ", round(percentVar[1], 1), "% variance"),
+    y = paste0("PC2: ", round(percentVar[2], 1), "% variance"),
+    color = "Compartment"
+  ) +
+  scale_color_brewer(palette = "Set1") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold")
+  )
+
+print(p)
+```
+Figure 1: 
+The PCA plot shows that exosome samples are clearly separated from tissue and cell-free samples along PC1 (73.5% variance), indicating a distinct miRNA profile. Tissue and cell-free samples form separate clusters but are closer to each other than to exosomes, reflecting more similar expression patterns. This separation suggests that each compartment carries a characteristic miRNA signature, supporting downstream differential expression analyses
+
+
+
+#### Heatmap of Top 20 Differentially Expressed miRNAs
+To visualise expression patterns across compartments, we generated a heatmap 
+using the top 20 most significant miRNAs from each pairwise comparison. 
+Variance-stabilized counts were used to improve comparability across samples.
+Expression values were scaled by row (miRNA-wise z-score transformation) 
+to highlight relative expression differences between compartments.
+
+##### Step 1: Select Top 20 miRNAs from Each Comparison
+
+```{r}
+top_miRNAs <- unique(c(
+  rownames(sig_exo_vs_cf)[1:20],
+  rownames(sig_exo_vs_ti)[1:20],
+  rownames(sig_ti_vs_cf)[1:20]
+))
+```
+##### Step 2: Extract the variance-stabilized expression counts for the selected miRNAs from the `vsd` object. 
+```{r}
+mat <- assay(vsd)[top_miRNAs, ]
+mat_scaled <- t(scale(t(mat)))
+mat_scaled[is.na(mat_scaled)] <- 0  
+```
+##### Step 3: Scale the expression values row-wise (z-score per miRNA) to normalize for differences in expression magnitude.
+```{r}
+annotation_col <- data.frame(
+  Compartment = colData(dds)$Compartment
+)
+```
+##### Step 4: Prepare sample annotation information based on the compartment (`Exo-miRNA`, `CF-miRNA`, `Ti-miRNA`) for labeling in the heatmap.
+```{r}
+rownames(annotation_col) <- colnames(mat_scaled)
+annotation_col$Compartment <- factor(
+  annotation_col$Compartment,
+  levels = c("exo", "cf", "ti"),
+  labels = c("Exo-miRNA", "CF-miRNA", "Ti-miRNA")
+)
+```
+##### Step 5: Define colors for each compartment to use in the annotation.
+```{r}
+omp_colors <- list(
+  Compartment = c(
+    "Exo-miRNA" = "#1f77b4",  # blue
+    "CF-miRNA"  = "#ff7f0e",  # orange
+    "Ti-miRNA"  = "#2ca02c"   # green
+  )
+)
+```
+##### Step 6: Generate the heatmap with row and column clustering, displaying miRNA names on rows and compartments as colored annotations.
+
+##### Step 7: Select top 20 miRNAs from each comparison
+```{r}
+top_miRNAs <- unique(c(
+  rownames(sig_exo_vs_cf)[1:20],
+  rownames(sig_exo_vs_ti)[1:20],
+  rownames(sig_ti_vs_cf)[1:20]
+))
+```
+##### Step 8: Extract variance-stabilized counts
+```{r}
+mat <- assay(vsd)[top_miRNAs, ]
+mat_scaled <- t(scale(t(mat)))
+mat_scaled[is.na(mat_scaled)] <- 0  
+```
+
+##### Step 9: Plot heatmap
+
+```{r}
+pheatmap(
+  mat_scaled,
+  cluster_rows = TRUE,
+  cluster_cols = TRUE,
+  show_rownames = TRUE,
+  show_colnames = FALSE,
+  fontsize_row = 8,
+  border_color = NA,
+  color = colorRampPalette(c("blue", "white", "red"))(100),
+  main = "Top 20 Significant miRNAs Across Compartments"
+)
+```
+
+Figure 2: Unsupervised clustering reveals compartment-specific miRNA signatures. Heatmap of the top 20 most variable miRNAs across matched tumor tissue , exosomal, and cell-free plasma (n=15 triad) samples from pediatric Burkitt lymphoma patients. Expression values are Z-score normalized (row-scaled). The three biological compartments form perfect clusters, demonstrating unique miRNA profiles. Key observations include the strong enrichment of the let-7 family in exosomes, a cluster of systemic (e.g., miR-122-5p) and erythroid-associated (e.g., miR-451a) miRNAs in cell-free plasma, and the retention of intracellular regulators (e.g., the miR-17-92 cluster member miR-106a-5p) in tumor tissue.
+
+
+
+
+
+#### Volcano Plot Analysis for Each Comparison
+
+We next examine differential miRNA expression using volcano plots for each pairwise comparison. These plots display log2 fold change on the x-axis and statistical significance on the y-axis, allowing clear identification of significantly upregulated and downregulated miRNAs across compartments.
+
+ Make sure your DESeq2 object exists then Differential expression results
+ 
+```{r} 
+res_exo_vs_cf <- results(dds, contrast = c("Compartment", "exo", "cf"))
+res_exo_vs_ti <- results(dds, contrast = c("Compartment", "exo", "ti"))
+res_cf_vs_ti <- results(dds, contrast = c("Compartment", "cf", "ti"))
+```
+Step 2: Convert results to data frames and add miRNA names
+```{r}
+res_exo_vs_cf_df <- as.data.frame(res_exo_vs_cf)
+res_exo_vs_cf_df$miRNA <- rownames(res_exo_vs_cf_df)
+```
+```{r}
+res_exo_vs_ti_df <- as.data.frame(res_exo_vs_ti)
+res_exo_vs_ti_df$miRNA <- rownames(res_exo_vs_ti_df)
+```
+```{r}
+res_cf_vs_ti_df <- as.data.frame(res_cf_vs_ti)
+res_cf_vs_ti_df$miRNA <- rownames(res_cf_vs_ti_df)
+```
+Step 3: Replace NA or zero padj values
+
+```{r}
+# exo vs cf
+res_exo_vs_cf_df$padj[is.na(res_exo_vs_cf_df$padj)] <- 1
+res_exo_vs_cf_df$padj[res_exo_vs_cf_df$padj == 0] <- 1e-300
+
+# exo vs ti
+res_exo_vs_ti_df$padj[is.na(res_exo_vs_ti_df$padj)] <- 1
+res_exo_vs_ti_df$padj[res_exo_vs_ti_df$padj == 0] <- 1e-300
+
+# cf vs ti
+res_cf_vs_ti_df$padj[is.na(res_cf_vs_ti_df$padj)] <- 1
+res_cf_vs_ti_df$padj[res_cf_vs_ti_df$padj == 0] <- 1e-300
+```
+#### Step 4: Add Significance column (Up / Down / NS)
+```{r}
+# exo vs cf
+res_exo_vs_cf_df$Significance <- "NS"
+res_exo_vs_cf_df$Significance[res_exo_vs_cf_df$padj < 0.05 & res_exo_vs_cf_df$log2FoldChange > 0] <- "Up"
+res_exo_vs_cf_df$Significance[res_exo_vs_cf_df$padj < 0.05 & res_exo_vs_cf_df$log2FoldChange < 0] <- "Down"
+
+# exo vs ti
+res_exo_vs_ti_df$Significance <- "NS"
+res_exo_vs_ti_df$Significance[res_exo_vs_ti_df$padj < 0.05 & res_exo_vs_ti_df$log2FoldChange > 0] <- "Up"
+res_exo_vs_ti_df$Significance[res_exo_vs_ti_df$padj < 0.05 & res_exo_vs_ti_df$log2FoldChange < 0] <- "Down"
+
+# cf vs ti
+res_cf_vs_ti_df$Significance <- "NS"
+res_cf_vs_ti_df$Significance[res_cf_vs_ti_df$padj < 0.05 & res_cf_vs_ti_df$log2FoldChange > 0] <- "Up"
+res_cf_vs_ti_df$Significance[res_cf_vs_ti_df$padj < 0.05 & res_cf_vs_ti_df$log2FoldChange < 0] <- "Down"
+
+
+```
+
+##### Step 5: Define a volcano plot function
+```{r}
+plot_volcano <- function(res_df, title, filename = NULL) {
+  
+  p <- ggplot(res_df, aes(x = log2FoldChange, y = -log10(padj), color = Significance)) +
+    geom_point(alpha = 0.6, size = 2) +
+    geom_vline(xintercept = 0, linetype = "dashed") +
+    geom_hline(yintercept = -log10(0.05), linetype = "dotted", color = "blue") +
+    scale_color_manual(values = c("Up" = "red", "Down" = "blue", "NS" = "grey")) +
+    theme_minimal() +
+    labs(title = title, x = "log2 Fold Change", y = "-log10(FDR)") +
+    theme(plot.title = element_text(hjust = 0.5, size = 16))
+
+  if (!is.null(filename)) {
+    ggsave(filename, plot = p, width = 8, height = 6, dpi = 300)
+  }
+
+  return(p)
+}
+
+
+
+ #### Step 5: Plot volcano plots for each comparison 
+```{r}
+if(!dir.exists("figures")) dir.create("figures", recursive = TRUE)
+plot_volcano(res_exo_vs_cf_df, "Exo vs CF-miRNA Comparison", "figures/volcano_exo_vs_cf.png")
+```
+Figure 3: The plot is a volcano plot comparing CF vs Ti-miRNA expression. It displays the relationship between statistical significance and magnitude of change for each miRNA.
+
+X-axis: Represents the log2 Fold Change, indicating the magnitude and direction of expression change. Positive values suggest upregulation in the comparison, while negative values suggest downregulation.
+
+Y-axis: Represents log10(FDR), the negative log10 of the false discovery rate-adjusted p-value. Higher values on the y-axis correspond to more statistically significant differences.
+
+Data points (miRNAs) are color-coded based on their expression status:
+
+Red (Up): miRNAs significantly upregulated
+
+Blue (Down): miRNAs significantly downregulated
+
+Grey (NS): miRNAs with no significant change
+```{r}
+plot_volcano(res_exo_vs_ti_df, "Exo vs Ti-miRNA Comparison", "figures/volcano_exo_vs_ti.png")
+```
+Figure 4: The volcano plot comparing Exo vs Ti-miRNA expression. It visualizes the distribution of miRNA expression changes between these two conditions.
+
+X-axis: Represents the log2 Fold Change, showing the magnitude and direction of expression differences. Positive values indicate upregulation in Exo compared to Ti-miRNA, while negative values indicate downregulation.
+
+Y-axis: Represents log10(FDR), the negative log10 of the false discovery rate-adjusted p-value. Points located higher on the y-axis represent miRNAs with more statistically significant differences.
+
+Data points (miRNAs) are color-coded based on their expression status:
+
+Red (Up): miRNAs significantly upregulated in Exo vs Ti-miRNA
+
+Blue (Down): miRNAs significantly downregulated in Exo vs Ti-miRNA
+
+Grey (NS): miRNAs showing no significant change between conditions
+
+
+```{r}
+plot_volcano(res_cf_vs_ti_df, "CF vs Ti-miRNA Comparison", "figures/volcano_cf_vs_ti.png")
+```
+Figure 5: This volcano plot comparing CF vs Ti-miRNA expression. It illustrates the relationship between statistical significance and expression changes for miRNAs across these two conditions.
+
+X-axis: Represents the log2 Fold Change, indicating the magnitude and direction of expression differences. Positive values denote upregulation in CF compared to Ti-miRNA, while negative values denote downregulation.
+
+Y-axis: Represents log10(FDR), the negative log10 of the false discovery rate-adjusted p-value. Points positioned higher on the y-axis correspond to miRNAs with greater statistical significance.
+
+Data points (miRNAs) are color-coded based on their expression status:
+
+Red (Up): miRNAs significantly upregulated in CF vs Ti-miRNA
+
+Blue (Down): miRNAs significantly downregulated in CF vs Ti-miRNA
+
+Grey (NS): miRNAs showing no significant change between conditions
+
+This visualization effectively highlights differentially expressed miRNAs that are both statistically significant and show meaningful fold changes between CF and Ti-miRNA samples.
+
+
+#### Combine volcano plot for three compartments
+ 
+This combined plot will allow us to compare differential miRNA expression across all compartments in a single view. Significant miRNAs will be highlighted, and the top upregulated and downregulated miRNAs from each comparison will be labeled.
+
+##### Step 1: Add comparison labels to each result
+
+Each differential expression result (from DESeq2) is tagged with a Comparison column so we can combine them later.
+
+```{r}
+res_exo_vs_cf_df$Comparison <- "Exo vs CF"
+res_exo_vs_ti_df$Comparison <- "Exo vs Ti"
+res_cf_vs_ti_df$Comparison <- "CF vs Ti"
+```
+#### Step 2: Combine all comparisons into a single data frame
+
+After adding the comparison labels, we merge all three data frames.
+We also remove any rows with missing padj values and set the order of comparisons for plotting.
+
+```{r}
+combined_volcano <- rbind(
+  res_exo_vs_cf_df,
+  res_exo_vs_ti_df,
+  res_cf_vs_ti_df
+)
+
+combined_volcano <- combined_volcano[!is.na(combined_volcano$padj), ]
+
+combined_volcano$Comparison <- factor(
+  combined_volcano$Comparison,
+  levels = c("Exo vs Ti", "CF vs Ti", "Exo vs CF")
+)
+```
+#### Step 3: Define significance and select top miRNAs
+
+We categorize each miRNA as Significant or Not Significant based on FDR (padj < 0.05) and log2 fold change.
+The top 10 upregulated and top 10 downregulated miRNAs from each comparison are selected for labeling.
+
+```{r}
+combined_volcano <- combined_volcano %>%
+  mutate(
+    significance = ifelse(padj < 0.05 & abs(log2FoldChange) > 1,
+                          "Significant",
+                          "Not Significant"),
+    direction = ifelse(log2FoldChange > 0, "Up", "Down")
+  )
+
+top_hits <- combined_volcano %>%
+  filter(padj < 0.05) %>%
+  group_by(Comparison, direction) %>%
+  arrange(padj) %>%
+  slice_head(n = 10) %>%
+  ungroup()
+```
+
+#### Step 5: Combined volcano plot
+
+We use ggplot2 and ggrepel to:
+
+Plot all miRNAs
+
+Highlight significant miRNAs in red
+
+Highlight top hits in blue
+
+Label top miRNAs
+
+Facet by comparison
+
+```{r}
+p <- ggplot(combined_volcano,
+            aes(x = log2FoldChange, y = -log10(padj))) +
+  geom_point(aes(color = significance), alpha = 0.6) +
+  geom_point(data = top_hits, color = "blue", size = 2) +
+  geom_text_repel(
+    data = top_hits,
+    aes(label = miRNA),
+    size = 3,
+    max.overlaps = 50,
+    box.padding = 0.5,
+    point.padding = 0.3
+  ) +
+  facet_wrap(~ Comparison, nrow = 1) +
+  scale_color_manual(values = c(
+    "Not Significant" = "grey70",
+    "Significant" = "red"
+  )) +
+  theme_minimal() +
+  labs(
+    title = "Significant and Non-Significant miRNAs Across Compartments",
+    x = "log2 Fold Change",
+    y = "-log10(FDR)"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16),
+    legend.position = "top",
+    strip.text = element_text(face = "bold", size = 12)
+  )
+
+p
+```
+Figure 6: The figure presents three parallel volcano plots visualizing differentially expressed miRNAs across different experimental conditions. Each panel displays the relationship between statistical significance (-log10(FDR)) on the y-axis and magnitude of expression change (log2 Fold Change) on the x-axis.
+The volcano plots display differential expression between (A) tissue vs exosomal-miRNA, (B) CF vs Tissue-miRNA, and (C) exosomal vs cell-free-miRNA compartments. Each point represents a miRNA, colored by processing state: blue = represent top miRNA , red = represent significant miRNA while grey dots  = represent Non-significant.
+Key differentially expressed miRNAs are labeled across all panels to facilitate cross-comparison, and
+This multi-panel format enables direct comparison of miRNA expression profiles across tissue, exosomal, and cell-free compartments, highlighting miRNAs that show differential abundance between compartments as well as those with compartment-enriched expression patterns.
+
+
+After performing differential expression analysis, we identified several up- and down-regulated miRNAs across the compartments. Notably, precursor miRNAs were predominantly enriched in exosomes, whereas their corresponding mature forms were primarily expressed in tissue samples. Cell-free (CF) samples exhibited a mixed expression pattern, likely reflecting contributions from tissue leakage or organ-specific miRNAs. To clearly visualize these patterns, we aim to create a bar plot distinguishing between mature and precursor miRNAs across the three compartments.
+
+##### Step 1: 
+in first step we create a miRNA type annotation and extract normalized counts by following codes:
+
+#####1a. Check the miRNA names in the DESeq2 object
+```{r}
+head(rownames(dds), 20)
+```
+1b. Create a data frame with miRNA names
+```{r}
+miRNA_df <- data.frame(miRNA = rownames(dds))
+```
+ 1c. Assign type based on name convention: Mature vs Precursor
+```{r}
+miRNA_df$Type <- ifelse(
+  grepl("-5p|-3p$", miRNA_df$miRNA),  # if name ends with -5p or -3p
+  "Mature",
+  "Precursor"
+)
+```
+
+1d. Inspect first few entries 
+```{r}
+head(miRNA_df, 10)
+```
+1e. Extract normalized counts from DESeq2
+```{r}
+norm_counts <- counts(dds, normalized = TRUE)
+```
+1f.Convert to data frame
+```{r}
+norm_df <- as.data.frame(norm_counts)
+```
+1g. Add miRNA names as a column for easier merging 
+```{r}
+norm_df$miRNA <- rownames(norm_df)
+```
+lets check 
+```{r}
+head(norm_df, 10) 
+```
+1h. Create miRNA type table (simplified)
+
+```{r}
+miRNA_type <- data.frame(
+  miRNA = rownames(norm_counts),
+  Type = miRNA_df$Type
+)
+```
+Check total miRNAs
+```{r}
+nrow(norm_counts)
+head(miRNA_type)
+```
+#### Step 2: Define sample groups
+Identify samples belonging to each compartment
+```{r}
+exo_samples <- colnames(norm_counts)[grep("_exo", colnames(norm_counts))]
+ti_samples  <- colnames(norm_counts)[grep("_ti", colnames(norm_counts))]
+cf_samples  <- colnames(norm_counts)[grep("_cf", colnames(norm_counts))]
+```
+Inspect
+```{r}
+head(exo_samples)
+head(ti_samples)
+head(cf_samples)
+```
+#### Step 3: Prepare barplot data
+ 
+```{r}
+# Function to calculate total counts per miRNA per compartment for any two groups
+prepare_bar_data <- function(norm_counts, miRNA_type, group1, group2, name1, name2) {
+  
+  # Subset counts for selected groups
+  counts_subset <- norm_counts[, c(group1, group2)]
+  
+  # Sum counts per miRNA
+  total_counts <- data.frame(
+    miRNA = rownames(counts_subset),
+    Comp1 = rowSums(counts_subset[, group1, drop = FALSE]),
+    Comp2 = rowSums(counts_subset[, group2, drop = FALSE])
+  )
+  
+  # Rename columns to meaningful compartment names
+  colnames(total_counts) <- c("miRNA", name1, name2)
+  
+  # Merge with miRNA type
+  total_counts <- merge(total_counts, miRNA_type, by = "miRNA")
+  
+ # Pivot longer for ggplot
+  counts_long <- total_counts %>%
+    pivot_longer(
+      cols = c(name1, name2),
+      names_to = "Compartment",
+      values_to = "TotalCounts"
+    )
+  
+  return(counts_long)
+}
+
+  
+```
+#### Step 4: Create data for each pairwise comparison
+```{r}
+# Exo vs Ti
+data_exo_ti <- prepare_bar_data(norm_counts, miRNA_type, exo_samples, ti_samples, "Exo", "Ti")
+
+# Exo vs CF
+data_exo_cf <- prepare_bar_data(norm_counts, miRNA_type, exo_samples, cf_samples, "Exo", "CF")
+
+# Ti vs CF
+data_ti_cf  <- prepare_bar_data(norm_counts, miRNA_type, ti_samples, cf_samples, "Ti", "CF")
+```
+ Inspect first few rows
+```{r}
+head(data_exo_ti)
+```
+ 
+#### Step 5: Combine comparisons and log-transform counts
+Add a Comparison column to each dataset
+```{r}
+data_exo_ti  <- data_exo_ti  %>% mutate(Comparison = "Exo_vs_Ti")
+data_exo_cf  <- data_exo_cf  %>% mutate(Comparison = "Exo_vs_CF")
+data_ti_cf   <- data_ti_cf   %>% mutate(Comparison = "Ti_vs_CF")
+```
+Combine all three comparisons
+```{r}
+counts_all <- bind_rows(data_exo_ti, data_exo_cf, data_ti_cf)
+```
+#### Add log2-transformed counts (log2(TotalCounts + 1) to avoid log(0))
+```{r}
+counts_all <- counts_all %>%
+  mutate(logCounts = log2(TotalCounts + 1))
+```
+Inspect
+```{r}
+  head(counts_all)
+```
+
+```{r}
+p <- ggplot(counts_all,
+              aes(x = Compartment,
+                  y = logCounts,
+                  fill = Compartment)) +
+    
+    geom_boxplot(width = 0.6, outlier.size = 0.5) +
+    
+    facet_wrap(~Type) +
+    
+    scale_fill_manual(values = c(
+      "exo" = "#b22222",
+      "ti"  = "#2e8b57",
+      "cf"  = "#1f4e79"
+    )) +
+    
+    labs(
+      title = "miRNA Expression Distribution per Compartment",
+      x = "Compartment",
+      y = "Log2 Normalized Counts"
+    ) +
+    
+    theme_classic(base_size = 14) +
+    
+    theme(
+      strip.text = element_text(size = 14, face = "bold"),
+      plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+      legend.position = "none"
+    )
+  
+  print(p)
+  
+```
+
+##### Figure 7:  
+Distribution of normalized miRNA expression across compartments. Boxplots show log2-transformed normalized counts for each miRNA, separated by type (Mature vs Precursor). Precursor miRNAs are predominantly enriched in exosomes, whereas mature miRNAs show higher expression in tissue and mixed levels in cell-free (CF) samples, reflecting tissue-derived or organ-specific leakage. Each box represents the interquartile range, the horizontal line inside the box indicates the median, and whiskers extend to 1.5× the interquartile range. Outliers are shown as individual points.
+
+
+#### miRNA Overlap Across Compartments:
+
+To understand how miRNAs are shared between Exosome (Exo), Tissue (Ti), and Cell-free (CF) compartments, we performed an overlap analysis. Using the normalized counts, miRNAs detected in each compartment were extracted, and a Venn diagram was generated to visualize shared and unique miRNAs. This analysis helps to identify compartment-specific miRNAs as well as those potentially leaking from tissue into circulation or packaged in exosomes.
+
+Exo-specific miRNAs represent miRNAs preferentially packaged into exosomes.
+
+Ti-specific miRNAs indicate miRNAs expressed primarily in tissue.
+
+CF-specific miRNAs may reflect a combination of tissue leakage and extracellular release.
+
+Shared miRNAs suggest common expression or inter-compartmental transfer, supporting biological relationships between compartments.
+
+##### Step 1: Identify Samples for Each Compartment
+Before analyzing overlaps, we first define the sample groups based on compartment. The normalized counts (norm_counts) have column names ending with _exo, _ti, and _cf, which correspond to Exosome, Tissue, and Cell-free compartments, respectively. We extract the sample names for each compartment to facilitate downstream analyses.
+
+##### 1a: Extract sample names for each compartment
+```{r}
+exo_samples <- colnames(norm_counts)[grep("_exo", colnames(norm_counts))]
+  ti_samples  <- colnames(norm_counts)[grep("_ti", colnames(norm_counts))]
+  cf_samples  <- colnames(norm_counts)[grep("_cf", colnames(norm_counts))]
+```
+
+##### 1b: Check the first few sample names
+```{r}
+  head(exo_samples)
+  head(ti_samples)
+  head(cf_samples)
+```
+#### Step 2: Get Detected miRNAs per Compartment
+To identify which miRNAs are present in each compartment, we define a miRNA as “detected” if it has a normalized count greater than zero in at least one sample of that compartment. This allows us to generate lists of miRNAs for Exosome, Tissue, and Cell-free compartments for overlap analysis.
+
+##### Step 2a: Detected miRNAs
+
+```{r}
+exo_miRNAs <- rownames(norm_counts)[rowSums(norm_counts[, exo_samples, drop=FALSE]) > 0]
+  ti_miRNAs  <- rownames(norm_counts)[rowSums(norm_counts[, ti_samples, drop=FALSE]) > 0]
+  cf_miRNAs  <- rownames(norm_counts)[rowSums(norm_counts[, cf_samples, drop=FALSE]) > 0]
+```
+#### Step 3: Check numbers of detected miRNAs per compartment
+
+```{r}
+length(exo_miRNAs)   
+  length(ti_miRNAs)    
+  length(cf_miRNAs)    
+```
+#### Step 4: Prepare miRNA Lists for Overlap Analysis
+
+Before plotting, ensure that vectors of detected miRNAs for each compartment are prepared. These were generated in Step 2 by filtering for miRNAs with normalized counts greater than zero
+
+###### use rownames of normalized counts with >0 expression
+```{r}
+  exo_miRNAs <- rownames(norm_counts)[rowSums(norm_counts[, exo_samples]) > 0]
+  ti_miRNAs  <- rownames(norm_counts)[rowSums(norm_counts[, ti_samples]) > 0]
+  cf_miRNAs  <- rownames(norm_counts)[rowSums(norm_counts[, cf_samples]) > 0]
+```
+####Step 5: Create the Venn Diagram
+Using the prepared miRNA lists, we can visualize overlaps between compartments. Each circle represents a compartment, and the intersections indicate miRNAs shared between them. This supports understanding of compartment-specific miRNAs and those commonly expressed.
+```{r}
+venn.plot <- venn.diagram(
+    x = list(
+      Exo = exo_miRNAs,
+      Ti  = ti_miRNAs,
+      CF  = cf_miRNAs
+    ),
+    filename = NULL,
+    fill = c("#b22222", "#2e8b57", "#1f4e79"),
+    alpha = 0.5,
+    cex = 1.2,
+    cat.cex = 1.3,
+    cat.pos = c(-20, 20, 0),   # keep simple
+    cat.dist = c(0.05, 0.05, 0.07),  # small push for CF
+    lwd = 2,
+    main = "Overlap of Detected miRNAs Across Compartments",
+    main.cex = 1.5
+  )
+  
+  
+  
+  grid.draw(venn.plot)
+  
+```
+
+##### Figure 8:
+
+Venn diagram showing overlap of detected miRNAs across compartments. Exosomes (red) are enriched for precursor miRNAs (n = 658), tissue (green) primarily contains mature miRNAs (n = 122), and cell-free plasma (blue) shows mixed expression (n = 151). Shared miRNAs between compartments (e.g., 359 between tissue and plasma) indicate inter-compartmental transport and support the role of exosomes in miRNA trafficking
+
