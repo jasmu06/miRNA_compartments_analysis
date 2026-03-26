@@ -1,33 +1,31 @@
-•	Decoding miRNA Compartmentalization in Pediatric Burkitt Lymphoma
+•Decoding miRNA Compartmentalization in Pediatric Burkitt Lymphoma
 
 Overview
 
 MicroRNA (miRNA) dysregulation represents a key component of the molecular pathology of pediatric Burkitt lymphoma (pBL). However, systematic, compartment-resolved analyses remain limited.
 
-This project provides a comprehensive re-analysis of miRNA-seq data from 51 treatment-naïve pBL samples, including matched:
-	•	Tumor tissue (Ti)
-	•	Exosomes (Exo)
-	•	Cell-free plasma (CF)
+This project provides a comprehensive re-analysis of miRNA-seq data from 45 pBL samples, including matched:
+• Tumor tissue (Ti)
+• Exosomes (Exo)
+• Cell-free plasma (CF)
 
 After stringent filtering of 2,982 detected miRNAs, 524 high-confidence miRNAs were retained for differential expression analysis using DESeq2.
 
 Key Findings
-	•	Compartment-specific processing states
-	•	Tumor tissue is enriched for mature miRNAs involved in intracellular regulation
-	•	Exosomes are enriched for precursor miRNAs, suggesting intercellular transfer and processing
-	•	Cell-free plasma shows a mixed profile, reflecting systemic biology
-	•	Biological insight
-	•	Evidence for “processing-state compartmentalization”
-	•	Clear separation of compartments in PCA space
-	•	Detection of systemic signals (e.g., liver-associated miR-122-5p)
-	•	Conceptual model
-	•	Dual-layer miRNA organization:
-	•	Functional specialization (intracellular vs extracellular roles)
-	•	RNA biogenesis specialization across compartments
+•	Compartment-specific processing states
+•	Tumor tissue is enriched for mature miRNAs involved in intracellular regulation
+•	Exosomes are enriched for precursor miRNAs, suggesting intercellular transfer and processing
+•	Cell-free plasma shows a mixed profile, reflecting systemic biology
+•	Biological insight
+•	Evidence for “processing-state compartmentalization”
+•	Clear separation of compartments in PCA space
+•	Detection of systemic signals (e.g., liver-associated miR-122-5p)
+•	Conceptual model
+•	Dual-layer miRNA organization:
+•	Functional specialization (intracellular vs extracellular roles)
+•	RNA biogenesis specialization across compartments
+
 ## Repository Structure
-
-
-
 ```text
 ├── data/  
 │   └── processed/          # Count matrices and metadata  
