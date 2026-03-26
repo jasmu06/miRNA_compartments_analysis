@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+title: "Compartment-Specific miRNA Processing in Pediatric Burkitt Lymphoma"
+message: "If you use this work, please cite it as below."
+type: software
+
+authors:
+  - family-names: "Jasim"
+    given-names: "Muhammad"
+
+version: "1.0.0"
+date-released: 2026-02-12
+
+keywords:
+  - miRNA
+  - Burkitt lymphoma
+  - RNA-seq
+  - exosomes
+  - bioinformatics
+
+license: MIT
