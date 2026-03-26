@@ -105,3 +105,10 @@ This repository introduces a compartment-aware framework for miRNA analysis in p
 
 This has direct implications for biomarker discovery and extracellular vesicle research.
 
+
+## Citation:
+
+If you use this repository or its results in your research, please cite:
+
+Muhammad Jasim (2026). *Compartment-Specific miRNA Processing in Pediatric Burkitt Lymphoma*.  
+GitHub repository. DOI: https://doi.org/10.5281/zenodo.19239964
