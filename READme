@@ -1,14 +1,32 @@
-MicroRNA (miRNA) dysregulation represents a critical dimension of the molecular pathology of pediatric Burkitt lymphoma (pBL), yet a systematic, quantitative assessment of the miRNA landscape across distinct biological compartments is lacking. To define compartment-specific miRNA signatures, we performed an integrated re-analysis of miRNA-sequencing data from 51 treatment-naïve pBL samples, encompassing matched tumor tissue, exosomal, and cell-free plasma fractions. Using a rigorous analytical pipeline, we applied stringent expression filtering to 2,982 detected miRNAs, yielding 524 high-confidence candidates for differential expression analysis using DESeq2.
-Our analysis revealed a fundamental biological principle: compartments specialize in distinct miRNA processing states, not merely in the abundance of identical mature miRNAs. We observed profound molecular partitioning where tumor tissue exclusively retained functional mature miRNAs for intracellular regulation (e.g., miR-7-5p, log₂FC = -18.7, pₐdⱼ = 1.5×10⁻¹³²), while exosomes were strikingly enriched for precursor forms implicated in extracellular communication (e.g., miR-423, log₂FC = +13.4, pₐdⱼ╼ = 2×10⁻⁸⁶). This suggests a model where exosomes may deliver pre-miRNAs for processing in recipient cells. Furthermore, cell-free plasma contained a mixture of both forms and revealed unexpected systemic biology through the significant abundance of liver-specific miR-122-5p, hinting at organ crosstalk in lymphoma pathogenesis.
-This "processing state compartmentalization" provides a novel mechanistic framework that explains the complete segregation of compartments in principal component space. Our findings establish a dual-layer model of miRNA distribution in pBL: canonical functional specialization (growth regulators retained, communication molecules exported) is complemented by a deeper, previously unrecognized layer of compartment-specific RNA biogenesis specialization. This refines the framework for compartment-aware biomarker development and offers critical methodological considerations for interpreting extracellular vesicle cargo across the field.
+•	Decoding miRNA Compartmentalization in Pediatric Burkitt Lymphoma
 
-# miRNA-seq Differential Expression Analysis
+Overview
 
-This repository contains a complete workflow for analyzing miRNA-seq data across **Exosomes (Exo)**, **Tissue (Ti)**, and **CF compartments**. It includes scripts, results, and visualizations of differential expression.
+MicroRNA (miRNA) dysregulation represents a key component of the molecular pathology of pediatric Burkitt lymphoma (pBL). However, systematic, compartment-resolved analyses remain limited.
 
----
+This project provides a comprehensive re-analysis of miRNA-seq data from 51 treatment-naïve pBL samples, including matched:
+	•	Tumor tissue (Ti)
+	•	Exosomes (Exo)
+	•	Cell-free plasma (CF)
 
+After stringent filtering of 2,982 detected miRNAs, 524 high-confidence miRNAs were retained for differential expression analysis using DESeq2.
+
+Key Findings
+	•	Compartment-specific processing states
+	•	Tumor tissue is enriched for mature miRNAs involved in intracellular regulation
+	•	Exosomes are enriched for precursor miRNAs, suggesting intercellular transfer and processing
+	•	Cell-free plasma shows a mixed profile, reflecting systemic biology
+	•	Biological insight
+	•	Evidence for “processing-state compartmentalization”
+	•	Clear separation of compartments in PCA space
+	•	Detection of systemic signals (e.g., liver-associated miR-122-5p)
+	•	Conceptual model
+	•	Dual-layer miRNA organization:
+	•	Functional specialization (intracellular vs extracellular roles)
+	•	RNA biogenesis specialization across compartments
 ## Repository Structure
+
+
 
 ```text
 ├── data/  
@@ -80,8 +98,12 @@ Generating PCA, heatmaps, volcano plots, boxplots, ternary plots, and correlatio
 
 Results are saved in results/ and figures/. Supplementary tables are in supplementary_data/.
 
-Contact
+Summary
 
-Muhammad Jasim
-Email: muhammadjasim.mj@gmail..com
-Location: Finland
+This repository introduces a compartment-aware framework for miRNA analysis in pBL, highlighting that:
+	•	miRNA distribution is not only about abundance
+	•	processing state matters
+	•	extracellular compartments carry biologically distinct RNA species
+
+This has direct implications for biomarker discovery and extracellular vesicle research.
+
