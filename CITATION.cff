@@ -4,11 +4,11 @@ message: "If you use this work, please cite it as below."
 type: software
 
 authors:
-  - family-names: "Jasim"
+  - family-names: "Jssim"
     given-names: "Muhammad"
 
 version: "1.0.0"
-date-released: 2026-02-12
+date-released: 2026-03-26
 
 keywords:
   - miRNA
@@ -18,3 +18,4 @@ keywords:
   - bioinformatics
 
 license: MIT
+doi: "https://doi.org/10.5281/zenodo.19239964"
