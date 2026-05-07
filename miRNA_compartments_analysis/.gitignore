@@ -1,0 +1,5 @@
+*.arf
+*.arf
+*.fastq
+*.bam
+.DS_Store
