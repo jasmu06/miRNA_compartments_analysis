@@ -66,37 +66,32 @@ To evaluate whether miRNA profiles encode compartment identity, a Random Forest 
 - Mature (-5p/-3p) vs precursor-associated expression patterns
 ---
 
-## Repository Structure
+ ## Repository Structure
 
-├── data/
-│ ├── raw/ # Raw FASTQ files (see SRA accession)
-│ ├── processed/ # Count matrices and metadata
-│ └── reference/ # miRBase v22.1 annotations
-│
-├── scripts/
-│ ├── 01_qc_filtering.R # Quality control and filtering
-│ ├── 02_deseq2_analysis.R # Differential expression
-│ ├── 03_visualization.R # PCA, heatmaps, volcano plots
-│ ├── 04_compartment_plots.R # Compartment-wise comparisons
-│ └── 05_machine_learning.py # Random Forest classifier
-│
-├── workflow/
-│ └── nextflow_pipeline.nf # Reproducible Nextflow pipeline
-│
-├── results/
-│ ├── figures/ # PCA, volcano, heatmaps, boxplots
-│ ├── tables/ # Differential expression results
-│ └── models/ # Trained Random Forest model
-│
-├── doc/
-│ └── supplementary/ # QC and alignment reports
-│
-├── README.md
-├── requirements_R.txt
-├── requirements_python.txt
-└── LICENSE
-
-
+| Folder/File | Description |
+|-------------|-------------|
+| **data/** | |
+| ├── raw/ | Raw FASTQ files (see SRA accession) |
+| ├── processed/ | Count matrices and metadata |
+| └── reference/ | miRBase v22.1 annotations |
+| **scripts/** | |
+| ├── 01_qc_filtering.R | Quality control & filtering |
+| ├── 02_deseq2_analysis.R | Differential expression |
+| ├── 03_visualization.R | PCA, heatmaps, volcano plots |
+| ├── 04_compartment_plots.R | Compartment-wise comparisons |
+| └── 05_machine_learning.py | Random Forest classifier |
+| **workflow/** | |
+| └── nextflow_pipeline.nf | Reproducible Nextflow pipeline |
+| **results/** | |
+| ├── figures/ | PCA, volcano, heatmaps, boxplots |
+| ├── tables/ | Differential expression results |
+| └── models/ | Trained Random Forest model |
+| **doc/** | |
+| └── supplementary/ | QC and alignment reports |
+| **README.md** | Project documentation |
+| **requirements_R.txt** | R package dependencies |
+| **requirements_python.txt** | Python package dependencies |
+| **LICENSE** | MIT License |
 ---
 
 
