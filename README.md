@@ -1,4 +1,4 @@
-  # miRNA-seq Differential Expression Analysis in Pediatric Burkitt Lymphoma
+  #  COMPARTMENT-RESOLVED MIRNA PROFILING REVEALS PROCESSING STATE-DEPENDENT DISTRIBUTION IN PEDIATRIC BURKITT LYMPHOMA
 
 ## Overview
 
