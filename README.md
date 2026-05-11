@@ -7,17 +7,19 @@ This project analyzes miRNA-seq data from pediatric Burkitt lymphoma (pBL) acros
 **Total samples:** 45 (15 treatment-naïve patients, matched across compartments, n=15 per compartment)
 
 ---
+ ## Key Findings
 
-## Key Findings
+- **Distinct compartment signatures**: PCA shows clear separation between Ti, Exo, and CF
 
-| Finding | Detail |
-|---------|--------|
-| Distinct compartment signatures | PCA shows clear separation between Ti, Exo, and CF |
-| Mature miRNA enrichment | Tumor tissue |
-| Precursor/processing fragments | Enriched in exosomes |
-| Systemic signal | miR-122-5p (liver) in cell-free plasma |
-| Classification accuracy | Random Forest: 97.8% |
-| Validation | Permutation testing confirmed biological signal |
+- **Mature miRNA enrichment**: Tumor tissue
+
+- **Precursor/processing fragments**: Enriched in exosomes
+
+- **Systemic signal**: miR-122-5p (liver) in cell-free plasma
+
+- **Classification accuracy**: Random Forest: 97.8%
+
+- **Validation**: Permutation testing confirmed a biological signal
 
 ---
 
@@ -35,17 +37,33 @@ To evaluate whether miRNA profiles encode compartment identity, a Random Forest 
 
 ## Methods Summary
 
-| Step | Tool/Method | Details |
-|
-| Quality control | FastQC, MultiQC | Raw read quality assessment |
-| Read processing | fastp | Adapter trimming, 18-40 nt filtering, Phred ≥20 |
-| Alignment | Bowtie (miRDeep2 mapper.pl) | GRCh38 reference genome |
-| Quantification | miRDeep2 quantifier.pl | miRBase v22.1 (mature + precursor annotations) |
-| Filtering | Custom R script | ≥5 reads in ≥3 samples (2,982 → 507 miRNAs) |
-| Differential expression | DESeq2 | ~ compartment design, FDR < 0.1, |log2FC| > 1 |
-| Visualization | ggplot2, pheatmap, EnhancedVolcano | PCA, heatmaps, volcano plots, boxplots |
-| Machine learning | scikit-learn (Python) | Random Forest classifier + permutation test |
+ ## 🧬 Methods
 
+### 📥 Data Collection
+- 45 samples from PRJNA1006509 (tissue, exosome, cell-free plasma; n=15 each)
+- SRA Toolkit v3.2.1 + Nextflow v25.04.4.5950
+
+- **miRDeep2**: GRCh38 alignment (Bowtie) + miRBase v22.1 annotation
+### 🔧 Preprocessing
+- **fastp v0.23.2**: Adapter trimming, size selection (18-40 nt), quality filter (Phred≥20)
+
+### 🧮 Quantification
+
+### 🧹 Filtering
+- 2,982 → **507 miRNAs** (≥5 reads in ≥3 samples)
+
+### 📊 Differential Expression
+- **DESeq2 v1.38.3** (R v4.2.2)
+- Criteria: |log2FC| > 1, adj.p < 0.1 (FDR)
+
+### 📈 Visualization
+- ggplot2, EnhancedVolcano, heatmaps, Venn diagrams
+
+### 🤖 Machine Learning
+- Random Forest (scikit-learn) with stratified cross-validation
+
+### 🔬 miRNA Processing Analysis
+- Mature (-5p/-3p) vs precursor-associated expression patterns
 ---
 
 ## Repository Structure
@@ -81,51 +99,50 @@ To evaluate whether miRNA profiles encode compartment identity, a Random Forest 
 
 ---
 
+
 ## Requirements
 
 ### R (≥ 4.2)
 
-```r
 install.packages(c("ggplot2", "pheatmap", "dplyr", "tidyr", "ggpubr"))
-BiocManager::install(c("DESeq2", "VennDiagram"))
+BiocManager::install(c("DESeq2", "EnhancedVolcano", "VennDiagram"))
 
-pip install scikit-learn pandas numpy matplotlib seaborn
+ pip install scikit-learn pandas numpy matplotlib seaborn joblib
 
+## 📊 Results
 
-Results
-Key Outputs
-Output	Location
-PCA plot	results/figures/pca_compartment.pdf
-Volcano plots	results/figures/volcano_Ti_vs_Exo.pdf
-Heatmap	results/figures/heatmap_differential_mirnas.pdf
-DE tables	results/tables/degs_Ti_vs_Exo.csv
-RF results	results/models/rf_results.json
-Processing State Distribution
-Compartment	Mature miRNAs	Precursor fragments
-Tumor tissue	High	Low
-Exosomes	Moderate	High
-Cell-free plasma	Mixed	Mixed
-Machine Learning Results
-Metric	Value
-Classifier	Random Forest
-Cross-validation	Stratified 5-fold
-Mean accuracy	97.8%
-Permutation test	p < 0.001
-Top features	miRNAs distinguishing Ti, Exo, and CF
-Data Availability
-Raw sequencing data: NCBI SRA PRJNA1006509
+### 📁 Key Outputs
+- PCA plot: `results/figures/pca_compartment.pdf.`
+- Volcano plots: `results/figures/volcano_Ti_vs_Exo.pdf.`
+- Heatmap: `results/figures/heatmap_differential_mirnas.pdf`
+- DE tables: `results/tables/degs_Ti_vs_Exo.csv.`
+- RF results: `results/models/rf_results.json`
 
-Processed count matrices: data/processed/
+### 🔬 Processing State Distribution
+- **Tumor tissue**: Mature (High), Precursor (Low)
+- **Exosomes**: Mature (Moderate), Precursor (High)
+- **Cell-free plasma**: Mature (Mixed), Precursor (Mixed)
 
+### 🤖 Machine Learning Results
+- **Classifier**: Random Forest
+- **Cross-validation**: Stratified 5-fold
+- **Mean accuracy**: 97.8%
+- **Permutation test**: p < 0.001
+- **Top features**: miRNAs distinguishing Ti, Exo, and CF
+
+### 📦 Data Availability 
+- Raw data: [SRA PRJNA1006509](https://www.ncbi.nlm.nih.gov/sra/PRJNA1006509)
+- Processed matrices: `data/processed/.`
+ 
 ## Citation:
  
-@misc{Muhammad Jasim 2026,
-  author = {Muhammad Jasim},
-  title = {Compartment-resolved miRNA profiling in pediatric Burkitt lymphoma},
-  year = {2026},
-  publisher = {GitHub},
-  url = {https://github.com/jasmu06/pbl-mirna-compartment-analysis}
-}
+ @misc{muhammad2026compartment,
+  author = Muhammad, Jasim,
+  title = Compartment-resolved miRNA profiling in pediatric Burkitt lymphoma,
+  year = 2026,
+  publisher = GitHub,
+  url = {https://github.com/jasmu06/pbl-mirna-compartment-analysis
+
 Contact
 Author: Muhammad Jasim
 Background: Independent Researcher | Genetics
